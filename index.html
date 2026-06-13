@@ -770,6 +770,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;}
     <button class="est-tab" id="et-sonhos" onclick="mudarTabEst('sonhos')">🌟 Sonhos</button>
     <button class="est-tab" id="et-pv" onclick="mudarTabEst('pv')">🧭 Projeto de Vida</button>
     <button class="est-tab" id="et-prot" onclick="mudarTabEst('prot')">🚀 Protagonismo</button>
+    <button class="est-tab" id="et-auto" onclick="mudarTabEst('auto')">🧠 Quem Sou Eu</button>
     <button class="est-tab" id="et-hist" onclick="mudarTabEst('hist')">📜 Meus Envios</button>
   </div>
 
@@ -840,6 +841,19 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;}
     </div>
   </div>
 
+  <div class="est-panel" id="ep-auto">
+    <div class="panel-card">
+      <h3>Quem Sou Eu — Autoconhecimento</h3>
+      <p class="sub">Conte ao seu tutor sobre você. Cada resposta validada entra automaticamente na sua FE-1.</p>
+      <div class="est-q"><label>Quais são seus principais gostos e preferências?</label><textarea id="ac-gostos" rows="2" placeholder="Ex.: música, futebol, desenhar, jogos..."></textarea></div>
+      <div class="est-q"><label>Quais são suas principais virtudes / características positivas?</label><textarea id="ac-virtudes" rows="2" placeholder="Ex.: sou dedicado, ajudo os colegas..."></textarea></div>
+      <div class="est-q"><label>Quais são suas principais habilidades?</label><textarea id="ac-hab" rows="2" placeholder="Ex.: sou bom em matemática, em esportes, em organizar..."></textarea></div>
+      <div class="est-q"><label>Quais seus pontos positivos neste momento?</label><textarea id="ac-pontos" rows="2"></textarea></div>
+      <div class="est-q"><label>Quais suas maiores dificuldades ou fragilidades hoje?</label><span class="hint">Isso ajuda seu tutor a te apoiar melhor.</span><textarea id="ac-dific" rows="2"></textarea></div>
+      <button class="btn-est" onclick="enviarAutoconhecimento()">Enviar ✓</button>
+    </div>
+  </div>
+
   <div class="est-panel" id="ep-hist">
     <div class="panel-card">
       <h3>Meus Envios</h3>
@@ -860,7 +874,12 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;}
     <div class="panel-card">
       <h3>Atualização de Informações</h3>
       <p class="sub">Preencha apenas o que mudou ou o que deseja informar. O tutor do estudante irá validar antes de registrar na ficha.</p>
+      <div class="fam-sec">Seção 0 — Dados Pessoais do Estudante</div>
+      <div class="est-q"><label>Data de nascimento do estudante</label><input id="fm-nasc" type="date"></div>
+      <div class="est-q"><label>Cidade onde o estudante nasceu</label><input id="fm-cidade" placeholder="Ex.: São Paulo - SP"></div>
       <div class="fam-sec">Seção 1 — Dados da Família (alterações)</div>
+      <div class="est-q"><label>Pai — nome e celular</label><input id="fm-pai" placeholder="Nome / (11) 9...."></div>
+      <div class="est-q"><label>Mãe — nome e celular</label><input id="fm-mae" placeholder="Nome / (11) 9...."></div>
       <div class="est-q"><label>Endereço</label><input id="fm-end"></div>
       <div class="est-q"><label>Telefone</label><input id="fm-tel" inputmode="tel"></div>
       <div class="est-q"><label>Responsável legal</label><input id="fm-resp"></div>
@@ -1593,12 +1612,21 @@ const MAPA_DESTINO_FE1 = {
   "pv.proximoPasso":             ["projetoVida"],
   "prot.projeto":                ["protagonismoJuvenil"],
   "prot.iniciativa":             ["protagonismoJuvenil"],
-  "familia.endereco":            ["dadosFamilia"],
-  "familia.telefone":            ["dadosFamilia"],
+  "familia.nascimento":          ["dadosPessoaisNasc"],
+  "familia.cidadeNatal":         ["dadosPessoaisCidade"],
+  "familia.pai":                 ["dadosFamiliaPai"],
+  "familia.mae":                 ["dadosFamiliaMae"],
+  "familia.endereco":            ["dadosPessoaisEnd"],
+  "familia.telefone":            ["dadosPessoaisCel"],
   "familia.responsavel":         ["dadosFamilia"],
   "familia.composicao":          ["dadosFamilia"],
   "familia.fatoImportante":      ["historico"],
-  "familia.informacaoRelevante": ["perfilFamiliar"]
+  "familia.informacaoRelevante": ["perfilFamiliar"],
+  "auto.gostos":                 ["gostosPreferencias"],
+  "auto.virtudes":               ["virtudes"],
+  "auto.habilidades":            ["habilidades"],
+  "auto.pontosPositivos":        ["pontosPositivos"],
+  "auto.dificuldades":           ["fragilidades"]
 };
 function integrarNaFE1(ra, chaveMapa, texto, extras){
   if(!texto||!String(texto).trim()) return Promise.resolve();
@@ -1608,30 +1636,123 @@ function integrarNaFE1(ra, chaveMapa, texto, extras){
   return Promise.all(destinos.map(dest=>fbPushSafe("fe1/"+ra+"/"+dest,registro)));
 }
 
-// ── Exibição dos registros integrados (fe1/{ra}) dentro da própria FE-1 ──
-const FE1_NOMES_CAMPO={pontosAtencao:"Ponto de atenção",desenvolvimentoAcademico:"Desenvolvimento acadêmico",protagonismoJuvenil:"Protagonismo juvenil",combinados:"Combinado",projetoVida:"Projeto de Vida",sonhos:"Sonhos",dadosFamilia:"Atualização familiar",historico:"Histórico",perfilFamiliar:"Perfil familiar"};
-// item da ficha → campos fe1 correspondentes
-const FE1_POR_ITEM={2:["dadosFamilia"],3:["historico"],4:["perfilFamiliar"],5:["sonhos"],6:["projetoVida"],13:["pontosAtencao"],16:["combinados"],18:["desenvolvimentoAcademico"],20:["protagonismoJuvenil"]};
+// ── Alimentação automática da FE-1: registros de fe1/{ra} entram NOS CAMPOS da ficha ──
+const FE1_NOMES_CAMPO={pontosAtencao:"Ponto de atenção",desenvolvimentoAcademico:"Desenvolvimento acadêmico",protagonismoJuvenil:"Protagonismo juvenil",combinados:"Combinado",projetoVida:"Projeto de Vida",sonhos:"Sonhos",dadosFamilia:"Atualização familiar",historico:"Histórico",perfilFamiliar:"Perfil familiar",dadosPessoaisNasc:"Data de nascimento",dadosPessoaisCidade:"Cidade natal",dadosPessoaisCel:"Celular",dadosPessoaisEnd:"Endereço",dadosFamiliaPai:"Pai / contato",dadosFamiliaMae:"Mãe / contato",gostosPreferencias:"Gostos e preferências",virtudes:"Virtudes",habilidades:"Habilidades",pontosPositivos:"Pontos positivos",fragilidades:"Fragilidades"};
+// destino fe1 → item da FE-1 + campo exato dentro do item
+// t: "l" campo único (só preenche se vazio) | "tx1" texto único (vazio=substitui; ocupado=anexa) | "tx" texto cumulativo | "ls" lista | "ld" lista com data
+const FE1_DEST={
+  dadosPessoaisNasc:{iid:1,t:"l",ch:"nasc"},
+  dadosPessoaisCidade:{iid:1,t:"l",ch:"cid"},
+  dadosPessoaisCel:{iid:1,t:"l",ch:"cel"},
+  dadosPessoaisEnd:{iid:1,t:"tx1",ch:"end"},
+  dadosFamiliaPai:{iid:2,t:"l",ch:"pai"},
+  dadosFamiliaMae:{iid:2,t:"l",ch:"mae"},
+  dadosFamilia:{iid:2,t:"tx",ch:"outros"},
+  historico:{iid:3,t:"tx",ch:"hist"},
+  perfilFamiliar:{iid:4,t:"tx",ch:"pfam"},
+  sonhos:{iid:5,t:"ld",ch:"son",q:4},
+  projetoVida:{iid:6,t:"ld",ch:"pv",q:4},
+  gostosPreferencias:{iid:7,t:"ls",ch:"gostos",q:3},
+  virtudes:{iid:8,t:"ls",ch:"virtudes",q:3},
+  habilidades:{iid:9,t:"ls",ch:"hab",q:3},
+  pontosPositivos:{iid:10,t:"ls",ch:"ppos",q:3},
+  fragilidades:{iid:12,t:"ls",ch:"fragil",q:3},
+  pontosAtencao:{iid:13,t:"ls",ch:"patc",q:3},
+  combinados:{iid:16,t:"ls",ch:"cfaz",q:3},
+  desenvolvimentoAcademico:{iid:18,t:"ls",ch:"pacad",q:3},
+  protagonismoJuvenil:{iid:20,t:"ls",ch:"ppj",q:3}
+};
+const FE1_POR_ITEM={}; Object.keys(FE1_DEST).forEach(dest=>{ const iid=FE1_DEST[dest].iid; (FE1_POR_ITEM[iid]=FE1_POR_ITEM[iid]||[]).push(dest); });
+
 function fe1Registros(fe1,campos){
   const arr=[];
-  (campos||[]).forEach(c=>{ const n=fe1[c]||{}; Object.keys(n).forEach(k=>arr.push(Object.assign({_campo:c},n[k]))); });
-  arr.sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  (campos||[]).forEach(c=>{ const n=fe1[c]||{}; Object.keys(n).forEach(k=>arr.push(Object.assign({_campo:c,_k:c+"/"+k},n[k]))); });
+  arr.sort((a,b)=>(a.data||"").localeCompare(b.data||"")); // mais antigos primeiro (ordem de preenchimento)
   return arr;
 }
+function fe1DataCurta(iso){ try{ const d=new Date(iso); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getFullYear()).slice(2); }catch(e){ return ""; } }
+function fe1Aplicados(fid){ try{ return JSON.parse(est[fid].d["_fe1ap_"+fid]||"[]"); }catch(e){ return []; } }
+
+// Escreve cada registro validado no campo correspondente da ficha (sem sobrescrever nada do tutor)
+function aplicarFE1NosCampos(fid,fe1){
+  const aplicados=fe1Aplicados(fid); const apSet=new Set(aplicados);
+  let mudou=false;
+  function marca(k){ apSet.add(k); aplicados.push(k); mudou=true; }
+  Object.keys(FE1_DEST).forEach(dest=>{
+    const cfg=FE1_DEST[dest];
+    const base=fid+"_"+cfg.iid+"_"+cfg.ch;
+    fe1Registros(fe1,[dest]).forEach(r=>{
+      if(apSet.has(r._k)) return;
+      const conteudo=(r.conteudo||"").trim(); if(!conteudo) { marca(r._k); return; }
+      const linha=fe1DataCurta(r.data)+" — "+conteudo+" (auto)";
+      if(cfg.t==="l"){
+        if(!(est[fid].d[base]||"").trim()){ est[fid].d[base]=conteudo; marca(r._k); }
+        // ocupado: registro mais recente fica no quadro de pendentes do item
+      } else if(cfg.t==="tx1"){
+        const atual=(est[fid].d[base]||"").trim();
+        est[fid].d[base]=atual?(atual+"\n• "+linha):conteudo;
+        marca(r._k);
+      } else if(cfg.t==="tx"){
+        const atual=(est[fid].d[base]||"").trim();
+        est[fid].d[base]=atual?(atual+"\n• "+linha):("• "+linha);
+        marca(r._k);
+      } else if(cfg.t==="ls"){
+        for(let n=1;n<=cfg.q;n++){
+          const kv=base+"_"+n;
+          if(!(est[fid].d[kv]||"").trim()){ est[fid].d[kv]=linha; marca(r._k); break; }
+        }
+      } else if(cfg.t==="ld"){
+        for(let n=1;n<=cfg.q;n++){
+          const kv=base+"_v"+n,kd=base+"_d"+n;
+          if(!(est[fid].d[kv]||"").trim()&&!(est[fid].d[kd]||"").trim()){
+            est[fid].d[kv]=conteudo+" (auto)";
+            est[fid].d[kd]=(r.data||"").slice(0,10);
+            marca(r._k); break;
+          }
+        }
+      }
+    });
+  });
+  if(mudou){ est[fid].d["_fe1ap_"+fid]=JSON.stringify(aplicados); }
+  return mudou;
+}
+
+// Quadro discreto apenas para registros SEM campo livre (nada se perde)
 function fe1RegBoxHtml(arr){
   if(!arr.length) return "";
-  return '<div class="fe1-int"><div class="fe1-int-tit">&#9889; Registros integrados automaticamente ('+arr.length+')</div>'
+  return '<div class="fe1-int"><div class="fe1-int-tit">&#9889; Registros validados aguardando campo livre ('+arr.length+') — libere uma linha acima para recebê-los</div>'
     +arr.map(r=>'<div class="fe1-int-row"><span class="fe1-int-data">'+fmtData(r.data)+'</span><span class="fe1-int-txt">'+esc(r.conteudo||"")+'</span><span class="fe1-int-val">'+esc(FE1_NOMES_CAMPO[r._campo]||r._campo)+' &middot; validado por '+esc(r.tutorValidador||"tutor")+'</span></div>').join("")
     +'</div>';
+}
+function renderFE1Pendentes(fid,fe1){
+  const apSet=new Set(fe1Aplicados(fid));
+  Object.keys(FE1_POR_ITEM).forEach(iid=>{
+    const slot=document.getElementById("fe1box_"+fid+"_"+iid);
+    if(!slot) return;
+    const sobrando=fe1Registros(fe1,FE1_POR_ITEM[iid]).filter(r=>!apSet.has(r._k));
+    slot.innerHTML=fe1RegBoxHtml(sobrando);
+  });
+}
+function rerenderFicha(fid){
+  const old=document.getElementById("f_"+fid); if(!old) return;
+  const ativa=old.classList.contains("at");
+  const div=document.createElement("div"); div.innerHTML=bFicha(fid);
+  const nova=div.firstChild;
+  old.replaceWith(nova);
+  if(ativa) nova.classList.add("at");
+  atuAba(fid); atuInd(fid); atuProg(fid);
 }
 function carregarFE1NaFicha(fid){
   const ra=((est[fid]&&est[fid].ra)||"").trim(); if(!ra) return;
   fbGetSafe("fe1/"+ra).then(s=>{
     const fe1=s.val()||{};
-    Object.keys(FE1_POR_ITEM).forEach(iid=>{
-      const slot=document.getElementById("fe1box_"+fid+"_"+iid);
-      if(slot) slot.innerHTML=fe1RegBoxHtml(fe1Registros(fe1,FE1_POR_ITEM[iid]));
-    });
+    const mudou=aplicarFE1NosCampos(fid,fe1);
+    if(mudou){
+      rerenderFicha(fid);
+      registrarAtualizacao(fid);
+      if(typeof svCloud==="function") svCloud();
+    }
+    renderFE1Pendentes(fid,fe1);
   }).catch(()=>{});
 }
 
@@ -1775,7 +1896,7 @@ function logoutEstudante(){
   document.getElementById("est-nome").value=""; document.getElementById("est-ra").value="";
 }
 function mudarTabEst(tab){
-  ["checkin","sonhos","pv","prot","hist"].forEach(t=>{
+  ["checkin","sonhos","pv","prot","auto","hist"].forEach(t=>{
     document.getElementById("et-"+t).classList.toggle("at",t===tab);
     document.getElementById("ep-"+t).classList.toggle("at",t===tab);
   });
@@ -1850,12 +1971,28 @@ function enviarProtagonismo(){
     ["pj-projeto","pj-iniciativa"].forEach(id=>document.getElementById(id).value="");
   }).catch(()=>mostrarToast("⚠ Erro ao enviar","erro"));
 }
+function enviarAutoconhecimento(){
+  if(!EST_LOGADO) return;
+  const d={
+    data:hojeISO(), statusValidacao:"pendente",
+    gostos:document.getElementById("ac-gostos").value.trim(),
+    virtudes:document.getElementById("ac-virtudes").value.trim(),
+    habilidades:document.getElementById("ac-hab").value.trim(),
+    pontosPositivos:document.getElementById("ac-pontos").value.trim(),
+    dificuldades:document.getElementById("ac-dific").value.trim()
+  };
+  if(!d.gostos&&!d.virtudes&&!d.habilidades&&!d.pontosPositivos&&!d.dificuldades){ mostrarToast("⚠ Escreva pelo menos uma resposta","erro"); return; }
+  fbPushSafe("escutaEstudante/"+EST_LOGADO.ra+"/autoconhecimento",d).then(()=>{
+    mostrarToast("✓ Enviado ao seu tutor","ok"); registrarAuditoria("autoconhecimento_enviado",{ra:EST_LOGADO.ra});
+    ["ac-gostos","ac-virtudes","ac-hab","ac-pontos","ac-dific"].forEach(id=>document.getElementById(id).value="");
+  }).catch(()=>mostrarToast("⚠ Erro ao enviar","erro"));
+}
 function carregarHistEstudante(){
   const box=document.getElementById("est-hist-list");
   box.innerHTML='<div class="empty-msg">Carregando...</div>';
   fbGetSafe("escutaEstudante/"+EST_LOGADO.ra).then(snap=>{
     const data=snap.val()||{};
-    const nomes={checkins:"Check-in semanal",reflexoesSonhos:"Reflexão sobre Sonhos",reflexoesProjetoVida:"Reflexão Projeto de Vida",protagonismo:"Protagonismo Juvenil"};
+    const nomes={checkins:"Check-in semanal",reflexoesSonhos:"Reflexão sobre Sonhos",reflexoesProjetoVida:"Reflexão Projeto de Vida",protagonismo:"Protagonismo Juvenil",autoconhecimento:"Quem Sou Eu (Autoconhecimento)"};
     let entries=[];
     Object.keys(nomes).forEach(coll=>{
       const c=data[coll]||{};
@@ -1872,8 +2009,8 @@ function carregarHistEstudante(){
 }
 
 // ═══ PAINEL DE PENDÊNCIAS DO TUTOR (3.C.6 — Fluxo de Validação) ═══
-const COLLS_ESCUTA=["checkins","reflexoesSonhos","reflexoesProjetoVida","protagonismo"];
-const COLL_LBL={checkins:"Check-in",reflexoesSonhos:"Sonhos",reflexoesProjetoVida:"Projeto de Vida",protagonismo:"Protagonismo"};
+const COLLS_ESCUTA=["checkins","reflexoesSonhos","reflexoesProjetoVida","protagonismo","autoconhecimento"];
+const COLL_LBL={checkins:"Check-in",reflexoesSonhos:"Sonhos",reflexoesProjetoVida:"Projeto de Vida",protagonismo:"Protagonismo",autoconhecimento:"Quem Sou Eu"};
 function listarPendencias(){
   const proms=TUTORADOS.map(t=>fbGetSafe("escutaEstudante/"+t.ra).then(s=>({t,data:s.val()||{}})).catch(()=>({t,data:{}})));
   return Promise.all(proms).then(res=>{
@@ -1900,6 +2037,7 @@ function camposDoRegistro(coll,e){
   ];
   if(coll==="reflexoesSonhos") return [["O sonho continua o mesmo?",e.continuaSonho],["Mudança nos planos",e.mudancaPlanos],["Ações realizadas",e.acoesRealizadas]];
   if(coll==="reflexoesProjetoVida") return [["Objetivo mais importante",e.objetivoPrincipal],["Ação realizada",e.acaoRealizada],["Próximo passo",e.proximoPasso]];
+  if(coll==="autoconhecimento") return [["Gostos e preferências",e.gostos],["Virtudes",e.virtudes],["Habilidades",e.habilidades],["Pontos positivos",e.pontosPositivos],["Dificuldades / fragilidades",e.dificuldades]];
   return [["Projeto / atividade de liderança",e.projeto],["Iniciativa na escola",e.iniciativa]];
 }
 function carregarPendencias(){
@@ -1952,6 +2090,13 @@ function validarPend(ra,coll,key){
     if(coll==="protagonismo"){
       if(e.projeto) tarefas.push(integrarNaFE1(ra,"prot.projeto","Participação: "+e.projeto));
       if(e.iniciativa) tarefas.push(integrarNaFE1(ra,"prot.iniciativa","Iniciativa: "+e.iniciativa));
+    }
+    if(coll==="autoconhecimento"){
+      if(e.gostos) tarefas.push(integrarNaFE1(ra,"auto.gostos",e.gostos));
+      if(e.virtudes) tarefas.push(integrarNaFE1(ra,"auto.virtudes",e.virtudes));
+      if(e.habilidades) tarefas.push(integrarNaFE1(ra,"auto.habilidades",e.habilidades));
+      if(e.pontosPositivos) tarefas.push(integrarNaFE1(ra,"auto.pontosPositivos",e.pontosPositivos));
+      if(e.dificuldades) tarefas.push(integrarNaFE1(ra,"auto.dificuldades",e.dificuldades));
     }
     return Promise.all(tarefas).then(()=>registrarAuditoria("validacao_escuta",{ra,coll,key}));
   }).then(()=>{
@@ -2114,7 +2259,7 @@ function abrirLinhaDoTempo(fid){
     fbGetSafe("historicoTutores/"+ra).then(s=>s.val()||{}).catch(()=>({}))
   ]).then(([fe1,metas,alertas,histT])=>{
     const eventos=[];
-    const NOMES_FE1={pontosAtencao:"Ponto de atenção",desenvolvimentoAcademico:"Desenvolvimento acadêmico",protagonismoJuvenil:"Protagonismo juvenil",combinados:"Combinado",projetoVida:"Projeto de Vida",sonhos:"Sonhos",dadosFamilia:"Atualização familiar",historico:"Histórico",perfilFamiliar:"Perfil familiar"};
+    const NOMES_FE1=FE1_NOMES_CAMPO;
     Object.keys(NOMES_FE1).forEach(campo=>{
       const c=fe1[campo]||{};
       Object.keys(c).forEach(k=>eventos.push({data:c[k].data,tipo:NOMES_FE1[campo],txt:c[k].conteudo,extra:"validado por "+(c[k].tutorValidador||"tutor")}));
@@ -2419,9 +2564,11 @@ function _gerarRelatorioConsolidado(rec,FE1REL){
     const st=d["_st_"+fid+"_"+it.id]||"pend"; const si=stInfo(st);
     let fe1Html="";
     if(typeof FE1_POR_ITEM!=="undefined"&&FE1_POR_ITEM[it.id]){
-      const regs=fe1Registros(FE1REL||{},FE1_POR_ITEM[it.id]);
+      let apRel=[]; try{ apRel=JSON.parse(d["_fe1ap_"+fid]||"[]"); }catch(e){}
+      const apRelSet=new Set(apRel);
+      const regs=fe1Registros(FE1REL||{},FE1_POR_ITEM[it.id]).filter(r=>!apRelSet.has(r._k));
       if(regs.length){
-        fe1Html='<div class="fe1r"><div class="fe1r-t">&#9889; Registros integrados automaticamente ('+regs.length+')</div>'
+        fe1Html='<div class="fe1r"><div class="fe1r-t">&#9889; Registros validados ainda não alocados em campos ('+regs.length+')</div>'
           +regs.map(r=>'<div class="fe1r-row"><span class="fe1r-d">'+fmtData(r.data)+'</span><span class="fe1r-c">'+esc(r.conteudo||"")+'</span><span class="fe1r-v">'+esc(FE1_NOMES_CAMPO[r._campo]||r._campo)+' &middot; validado por '+esc(r.tutorValidador||"tutor")+'</span></div>').join("")
           +'</div>';
       }
@@ -2607,6 +2754,10 @@ function logoutFamiliar(){
 function enviarAtualizacaoFamiliar(){
   if(!FAM_LOGADO) return;
   const campos={
+    nascimento:document.getElementById("fm-nasc").value.trim(),
+    cidadeNatal:document.getElementById("fm-cidade").value.trim(),
+    pai:document.getElementById("fm-pai").value.trim(),
+    mae:document.getElementById("fm-mae").value.trim(),
     endereco:document.getElementById("fm-end").value.trim(),
     telefone:document.getElementById("fm-tel").value.trim(),
     responsavel:document.getElementById("fm-resp").value.trim(),
@@ -2619,10 +2770,10 @@ function enviarAtualizacaoFamiliar(){
     .then(()=>{
       registrarAuditoria("atualizacao_familiar_enviada",{ra:FAM_LOGADO.ra});
       mostrarToast("✓ Enviado à escola. O tutor irá validar.","ok");
-      ["fm-end","fm-tel","fm-resp","fm-comp","fm-fato","fm-info"].forEach(id=>document.getElementById(id).value="");
+      ["fm-nasc","fm-cidade","fm-pai","fm-mae","fm-end","fm-tel","fm-resp","fm-comp","fm-fato","fm-info"].forEach(id=>document.getElementById(id).value="");
     }).catch(()=>mostrarToast("⚠ Erro ao enviar","erro"));
 }
-const FAM_LBL={endereco:"Endereço",telefone:"Telefone",responsavel:"Responsável legal",composicao:"Composição familiar",fatoImportante:"Fato importante (Histórico)",informacaoRelevante:"Informação relevante (Perfil Familiar)"};
+const FAM_LBL={nascimento:"Data de nascimento",cidadeNatal:"Cidade natal",pai:"Pai / contato",mae:"Mãe / contato",endereco:"Endereço",telefone:"Telefone",responsavel:"Responsável legal",composicao:"Composição familiar",fatoImportante:"Fato importante (Histórico)",informacaoRelevante:"Informação relevante (Perfil Familiar)"};
 function validarFamiliar(ra,key){
   fbGetSafe("atualizacaoFamiliar/"+ra+"/"+key).then(s=>{
     const e=s.val(); if(!e) throw new Error();
@@ -2630,8 +2781,12 @@ function validarFamiliar(ra,key){
     return fbSetSafe("atualizacaoFamiliar/"+ra+"/"+key,e).then(()=>{
       const c=e.campos||{};
       const tarefas=[];
-      if(c.endereco) tarefas.push(integrarNaFE1(ra,"familia.endereco","Novo endereço: "+c.endereco));
-      if(c.telefone) tarefas.push(integrarNaFE1(ra,"familia.telefone","Novo telefone: "+c.telefone));
+      if(c.nascimento) tarefas.push(integrarNaFE1(ra,"familia.nascimento",c.nascimento));
+      if(c.cidadeNatal) tarefas.push(integrarNaFE1(ra,"familia.cidadeNatal",c.cidadeNatal));
+      if(c.pai) tarefas.push(integrarNaFE1(ra,"familia.pai",c.pai));
+      if(c.mae) tarefas.push(integrarNaFE1(ra,"familia.mae",c.mae));
+      if(c.endereco) tarefas.push(integrarNaFE1(ra,"familia.endereco",c.endereco));
+      if(c.telefone) tarefas.push(integrarNaFE1(ra,"familia.telefone",c.telefone));
       if(c.responsavel) tarefas.push(integrarNaFE1(ra,"familia.responsavel","Responsável legal: "+c.responsavel));
       if(c.composicao) tarefas.push(integrarNaFE1(ra,"familia.composicao","Composição familiar: "+c.composicao));
       if(c.fatoImportante) tarefas.push(integrarNaFE1(ra,"familia.fatoImportante","Informado pela família: "+c.fatoImportante));
